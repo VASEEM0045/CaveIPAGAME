@@ -29,7 +29,12 @@ jobs:
           if [ -f "CaveRanger_UnityProject.zip" ]; then
             echo "Unzipping CaveRanger_UnityProject.zip..."
             unzip -q CaveRanger_UnityProject.zip -d .
+            rm -f CaveRanger_UnityProject.zip
           fi
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add -A
+          git commit -m "Restore project files" || true
           ls -la
 
       # GameCI Unity Builder to export iOS Xcode Project
@@ -44,6 +49,8 @@ jobs:
           targetPlatform: iOS
           unityVersion: 6000.3.2f1
           buildsPath: build
+          versioning: None
+          allowDirtyBuild: true
 
       - name: Upload Xcode Project
         uses: actions/upload-artifact@v4
