@@ -1,0 +1,106 @@
+name: Build iOS IPA (Unity to TrollStore)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_name:
+        description: "App Name"
+        required: true
+        default: "Cave Ranger"
+      bundle_id:
+        description: "Bundle Identifier"
+        required: true
+        default: "com.cascadia.caveranger"
+
+jobs:
+  build-unity-xcode:
+    name: 1. Export Xcode Project from Unity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Restore Unity Project
+        run: |
+          if [ -f "CaveRanger_Project_part1.zip" ] && [ -f "CaveRanger_Project_part2.zip" ]; then
+            echo "Rejoining split zip files..."
+            cat CaveRanger_Project_part1.zip CaveRanger_Project_part2.zip > CaveRanger_UnityProject.zip
+          fi
+          if [ -f "CaveRanger_UnityProject.zip" ]; then
+            echo "Unzipping CaveRanger_UnityProject.zip..."
+            unzip -q CaveRanger_UnityProject.zip -d .
+          fi
+          ls -la
+
+      # GameCI Unity Builder to export iOS Xcode Project
+      - name: Build Unity Project for iOS
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          targetPlatform: iOS
+          unityVersion: 6000.3.2f1
+          buildsPath: build
+
+      - name: Upload Xcode Project
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-project
+          path: build/iOS/
+          retention-days: 2
+
+  build-ipa:
+    name: 2. Compile IPA with Xcode (macOS)
+    needs: build-unity-xcode
+    runs-on: macos-15
+    steps:
+      - name: Download Xcode Project
+        uses: actions/download-artifact@v4
+        with:
+          name: xcode-project
+          path: build/iOS
+
+      - name: Make scripts executable
+        run: |
+          find build/iOS -type f -name "*.sh" -exec chmod +x {} + || true
+
+      - name: Build with Xcode (TrollStore / Sideload Unsigned)
+        run: |
+          cd build/iOS
+          PROJECT_NAME=$(ls -d *.xcodeproj | head -n 1)
+          SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
+          echo "Building Project: $PROJECT_NAME with Scheme: $SCHEME_NAME"
+          
+          xcodebuild build \
+            -project "$PROJECT_NAME" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath ./build_output \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Package Unsigned IPA for TrollStore
+        run: |
+          cd build/iOS
+          APP_DIR=$(find ./build_output -type d -name "*.app" | head -n 1)
+          echo "Found compiled app: $APP_DIR"
+          
+          mkdir -p Payload
+          cp -R "$APP_DIR" Payload/
+          
+          # Create IPA
+          zip -r -q CaveRanger.ipa Payload
+          echo "IPA created successfully: $(ls -lh CaveRanger.ipa)"
+
+      - name: Upload CaveRanger.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaveRanger-iOS-IPA
+          path: build/iOS/CaveRanger.ipa
+          retention-days: 14
