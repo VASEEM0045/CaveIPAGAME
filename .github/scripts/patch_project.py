@@ -1,5 +1,6 @@
 import os
 import shutil
+import struct
 
 print("=== Running patch_project.py for iOS ===")
 
@@ -69,5 +70,42 @@ if os.path.exists(tm_path):
         with open(tm_path, "w", encoding="utf-8") as f:
             f.write(content)
         print("Patched UnityUITextMeshProGlyphHelper.cs")
+
+# 6. Remove Switch-only DLLs and dummy generated DLLs
+switch_dlls = [
+    "Rewired_NintendoSwitch.dll",
+    "Unity.InputSystem.Switch.dll",
+    "UnityEngine.SwitchModule.dll",
+    "__Generated.dll"
+]
+plugins_dir = "Assets/Plugins"
+for s_dll in switch_dlls:
+    p = os.path.join(plugins_dir, s_dll)
+    if os.path.exists(p):
+        os.remove(p)
+        print(f"Removed {s_dll}")
+    if os.path.exists(p + ".meta"):
+        os.remove(p + ".meta")
+
+# 7. Fix PE headers on all DLLs to ensure IMAGE_FILE_DLL (0x2000) is set
+# This prevents MonoLinker from treating DLLs as executables and crashing on assembly.EntryPoint
+for root, dirs, files in os.walk(plugins_dir):
+    for f in files:
+        if f.endswith(".dll"):
+            dll_path = os.path.join(root, f)
+            try:
+                with open(dll_path, "r+b") as fp:
+                    data = fp.read()
+                    if len(data) > 0x40 and data[:2] == b"MZ":
+                        pe_offset = struct.unpack("<I", data[0x3c:0x40])[0]
+                        char_offset = pe_offset + 22
+                        characteristics = struct.unpack("<H", data[char_offset:char_offset+2])[0]
+                        if not (characteristics & 0x2000):
+                            characteristics |= 0x2000
+                            fp.seek(char_offset)
+                            fp.write(struct.pack("<H", characteristics))
+                            print(f"Fixed PE characteristics (IMAGE_FILE_DLL) for {f}")
+            except Exception as e:
+                print(f"Error checking {f}: {e}")
 
 print("=== Patching complete! ===")
