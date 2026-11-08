@@ -78,15 +78,30 @@ jobs:
           SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
           echo "Building Project: $PROJECT_NAME with Scheme: $SCHEME_NAME"
           
-          xcodebuild build \
+          # Patch project.pbxproj to ensure manual signing without team
+          python3 -c "
+          import os, glob
+          for proj in glob.glob('*.xcodeproj'):
+              pbx = os.path.join(proj, 'project.pbxproj')
+              if os.path.exists(pbx):
+                  with open(pbx, 'r') as f:
+                      c = f.read()
+                  c = c.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
+                  with open(pbx, 'w') as f:
+                      f.write(c)
+                  print('Patched', pbx, 'for manual signing')
+          " || true
+          
+          xcodebuild clean build \
             -project "$PROJECT_NAME" \
             -scheme "$SCHEME_NAME" \
             -configuration Release \
             -destination "generic/platform=iOS" \
             -derivedDataPath ./build_output \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_STYLE=Manual \
             COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Package Unsigned IPA for TrollStore
