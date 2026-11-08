@@ -12,13 +12,30 @@ if os.path.exists(nn_path):
 if os.path.exists(nn_path + ".meta"):
     os.remove(nn_path + ".meta")
 
-# 2. Remove unused Rewired Demos
+# 2. Remove unused Rewired Demos and Switch platform scripts
 demos_path = "Assets/Scripts/Assembly-CSharp/Rewired/Demos"
 if os.path.exists(demos_path):
     print("Removing Rewired Demos...")
     shutil.rmtree(demos_path, ignore_errors=True)
 if os.path.exists(demos_path + ".meta"):
     os.remove(demos_path + ".meta")
+
+switch_plat = "Assets/Scripts/Assembly-CSharp/Rewired/Platforms/Switch"
+if os.path.exists(switch_plat):
+    print("Removing Rewired Switch platform...")
+    shutil.rmtree(switch_plat, ignore_errors=True)
+if os.path.exists(switch_plat + ".meta"):
+    os.remove(switch_plat + ".meta")
+
+plat_parent = "Assets/Scripts/Assembly-CSharp/Rewired/Platforms"
+if os.path.exists(plat_parent):
+    try:
+        if not os.listdir(plat_parent):
+            os.rmdir(plat_parent)
+            if os.path.exists(plat_parent + ".meta"):
+                os.remove(plat_parent + ".meta")
+    except Exception:
+        pass
 
 # 3. Stub NintendoManager.cs
 nm_path = "Assets/Scripts/Assembly-CSharp/NintendoManager.cs"
