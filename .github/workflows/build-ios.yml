@@ -30,24 +30,7 @@ jobs:
           rm -rf Assets/Scripts/Assembly-CSharp/nn
           rm -rf Assets/Scripts/Assembly-CSharp/nn.meta
 
-          cat << 'EOF' > Assets/Scripts/Assembly-CSharp/NintendoManager.cs
-using UnityEngine.Events;
-
-public class NintendoManager : PersistentSingleton<NintendoManager>
-{
-	private const string mountName = "MySave";
-	private const string fileName = "MySaveData";
-	private static readonly string filePath;
-	private bool IsReady;
-	public bool IsHandheldMode => true;
-
-	private void Start() {}
-	private void AbortBool(string message, UnityAction<bool> onComplete) { onComplete?.Invoke(false); }
-	private void AbortString(string message, UnityAction<string> onComplete) { onComplete?.Invoke(""); }
-	public void Save(string data, UnityAction<bool> onComplete) { onComplete?.Invoke(true); }
-	public void Load(UnityAction<string> onComplete) { onComplete?.Invoke(""); }
-}
-EOF
+          echo "dXNpbmcgVW5pdHlFbmdpbmUuRXZlbnRzOwoKcHVibGljIGNsYXNzIE5pbnRlbmRvTWFuYWdlciA6IFBlcnNpc3RlbnRTaW5nbGV0b248TmludGVuZG9NYW5hZ2VyPgp7Cglwcml2YXRlIGNvbnN0IHN0cmluZyBtb3VudE5hbWUgPSAiTXlTYXZlIjsKCXByaXZhdGUgY29uc3Qgc3RyaW5nIGZpbGVOYW1lID0gIk15U2F2ZURhdGEiOwoJcHJpdmF0ZSBzdGF0aWMgcmVhZG9ubHkgc3RyaW5nIGZpbGVQYXRoOwoJcHJpdmF0ZSBib29sIElzUmVhZHk7CglwdWJsaWMgYm9vbCBJc0hhbmRoZWxkTW9kZSA9PiB0cnVlOwoKCXByaXZhdGUgdm9pZCBTdGFydCgpIHt9Cglwcml2YXRlIHZvaWQgQWJvcnRCb29sKHN0cmluZyBtZXNzYWdlLCBVbml0eUFjdGlvbjxib29sPiBvbkNvbXBsZXRlKSB7IG9uQ29tcGxldGU/Lkludm9rZShmYWxzZSk7IH0KCXByaXZhdGUgdm9pZCBBYm9ydFN0cmluZyhzdHJpbmcgbWVzc2FnZSwgVW5pdHlBY3Rpb248c3RyaW5nPiBvbkNvbXBsZXRlKSB7IG9uQ29tcGxldGU/Lkludm9rZSgiIik7IH0KCXB1YmxpYyB2b2lkIFNhdmUoc3RyaW5nIGRhdGEsIFVuaXR5QWN0aW9uPGJvb2w+IG9uQ29tcGxldGUpIHsgb25Db21wbGV0ZT8uSW52b2tlKHRydWUpOyB9CglwdWJsaWMgdm9pZCBMb2FkKFVuaXR5QWN0aW9uPHN0cmluZz4gb25Db21wbGV0ZSkgeyBvbkNvbXBsZXRlPy5JbnZva2UoIiIpOyB9Cn0K" | base64 -d > Assets/Scripts/Assembly-CSharp/NintendoManager.cs
 
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
