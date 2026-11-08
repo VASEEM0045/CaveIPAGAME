@@ -31,10 +31,34 @@ jobs:
             unzip -q CaveRanger_UnityProject.zip -d .
             rm -f CaveRanger_UnityProject.zip
           fi
+
+          echo "Removing Nintendo Switch nn SDK..."
+          rm -rf Assets/Scripts/Assembly-CSharp/nn
+          rm -rf Assets/Scripts/Assembly-CSharp/nn.meta
+
+          cat << 'EOF' > Assets/Scripts/Assembly-CSharp/NintendoManager.cs
+using UnityEngine.Events;
+
+public class NintendoManager : PersistentSingleton<NintendoManager>
+{
+	private const string mountName = "MySave";
+	private const string fileName = "MySaveData";
+	private static readonly string filePath;
+	private bool IsReady;
+	public bool IsHandheldMode => true;
+
+	private void Start() {}
+	private void AbortBool(string message, UnityAction<bool> onComplete) { onComplete?.Invoke(false); }
+	private void AbortString(string message, UnityAction<string> onComplete) { onComplete?.Invoke(""); }
+	public void Save(string data, UnityAction<bool> onComplete) { onComplete?.Invoke(true); }
+	public void Load(UnityAction<string> onComplete) { onComplete?.Invoke(""); }
+}
+EOF
+
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add -A
-          git commit -m "Restore project files" || true
+          git commit -m "Restore project files and patch for iOS" || true
           ls -la
 
       # GameCI Unity Builder to export iOS Xcode Project
