@@ -65,37 +65,54 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: xcode-project
-          path: build/iOS
+          path: xcode_export
 
       - name: Make scripts executable
         run: |
-          find build/iOS -type f -name "*.sh" -exec chmod +x {} + || true
+          find xcode_export -type f -name "*.sh" -exec chmod +x {} + || true
 
       - name: Build with Xcode (TrollStore / Sideload Unsigned)
         run: |
-          cd build/iOS
-          PROJECT_NAME=$(ls -d *.xcodeproj | head -n 1)
-          SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
-          echo "Building Project: $PROJECT_NAME with Scheme: $SCHEME_NAME"
+          XCODEPROJ_PATH=$(find xcode_export -name "*.xcodeproj" | head -n 1)
+          if [ -z "$XCODEPROJ_PATH" ]; then
+            echo "Error: No .xcodeproj found in xcode_export!"
+            ls -laR xcode_export
+            exit 1
+          fi
+          
+          PROJECT_DIR=$(dirname "$XCODEPROJ_PATH")
+          PROJECT_NAME=$(basename "$XCODEPROJ_PATH")
+          echo "Found Project: $PROJECT_NAME in $PROJECT_DIR"
+          cd "$PROJECT_DIR"
           
           # Patch project.pbxproj to ensure manual signing without team
-          python3 -c "
-          import os, glob
-          for proj in glob.glob('*.xcodeproj'):
-              pbx = os.path.join(proj, 'project.pbxproj')
-              if os.path.exists(pbx):
-                  with open(pbx, 'r') as f:
-                      c = f.read()
-                  c = c.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
-                  with open(pbx, 'w') as f:
-                      f.write(c)
-                  print('Patched', pbx, 'for manual signing')
-          " || true
+          cat << 'EOF' > patch_xcode.py
+import os, sys, re
+proj_name = sys.argv[1]
+pbx = os.path.join(proj_name, 'project.pbxproj')
+if os.path.exists(pbx):
+    with open(pbx, 'r', encoding='utf-8') as f:
+        c = f.read()
+    c = c.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
+    c = re.sub(r'DevelopmentTeam = [^;]*;', 'DevelopmentTeam = "";', c)
+    c = re.sub(r'DevelopmentTeam\[[^\]]*\] = [^;]*;', 'DevelopmentTeam = "";', c)
+    c = re.sub(r'PROVISIONING_PROFILE_SPECIFIER = [^;]*;', 'PROVISIONING_PROFILE_SPECIFIER = "";', c)
+    with open(pbx, 'w', encoding='utf-8') as f:
+        f.write(c)
+    print('Successfully patched', pbx, 'for manual signing')
+else:
+    print('Warning: Could not find', pbx)
+EOF
+          python3 patch_xcode.py "$PROJECT_NAME" || true
+          
+          SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
+          echo "Building Project: $PROJECT_NAME with Scheme: $SCHEME_NAME"
           
           xcodebuild clean build \
             -project "$PROJECT_NAME" \
             -scheme "$SCHEME_NAME" \
             -configuration Release \
+            -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath ./build_output \
             CODE_SIGN_IDENTITY="" \
@@ -106,10 +123,15 @@ jobs:
 
       - name: Package Unsigned IPA for TrollStore
         run: |
-          cd build/iOS
-          APP_DIR=$(find ./build_output -type d -name "*.app" | head -n 1)
+          APP_DIR=$(find xcode_export -type d -name "*.app" | head -n 1)
           echo "Found compiled app: $APP_DIR"
+          if [ -z "$APP_DIR" ]; then
+            echo "Error: Could not locate compiled .app directory!"
+            find xcode_export -maxdepth 6
+            exit 1
+          fi
           
+          rm -rf Payload CaveRanger.ipa
           mkdir -p Payload
           cp -R "$APP_DIR" Payload/
           
@@ -121,5 +143,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CaveRanger-iOS-IPA
-          path: build/iOS/CaveRanger.ipa
+          path: CaveRanger.ipa
           retention-days: 14
+
