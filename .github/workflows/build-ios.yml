@@ -1,16 +1,7 @@
 name: Build iOS IPA (Unity to TrollStore)
 
 on:
-  workflow_dispatch:
-    inputs:
-      build_name:
-        description: "App Name"
-        required: true
-        default: "Cave Ranger"
-      bundle_id:
-        description: "Bundle Identifier"
-        required: true
-        default: "com.cascadia.caveranger"
+  workflow_dispatch: {}
 
 jobs:
   build-unity-xcode:
