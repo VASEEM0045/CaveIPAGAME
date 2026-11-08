@@ -22,6 +22,12 @@ for root, dirs, files in os.walk(search_dir):
                 c = re.sub(r'DevelopmentTeam\[[^\]]*\] = [^;]*;', 'DevelopmentTeam = "";', c)
                 # Remove provisioning profiles
                 c = re.sub(r'PROVISIONING_PROFILE_SPECIFIER = [^;]*;', 'PROVISIONING_PROFILE_SPECIFIER = "";', c)
+                c = re.sub(r'PROVISIONING_PROFILE = [^;]*;', 'PROVISIONING_PROFILE = "";', c)
+                # Clear code sign identity
+                c = re.sub(r'CODE_SIGN_IDENTITY = [^;]*;', 'CODE_SIGN_IDENTITY = "";', c)
+                c = re.sub(r'CODE_SIGN_IDENTITY\[[^\]]*\] = [^;]*;', 'CODE_SIGN_IDENTITY = "";', c)
+                # Force disable signing in all build settings
+                c = c.replace("buildSettings = {", 'buildSettings = {\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;\n\t\t\t\tCODE_SIGN_IDENTITY = "";')
                 
                 with open(pbx, "w", encoding="utf-8") as f:
                     f.write(c)
