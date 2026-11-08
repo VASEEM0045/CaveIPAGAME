@@ -61,6 +61,9 @@ jobs:
     needs: build-unity-xcode
     runs-on: macos-15
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Download Xcode Project
         uses: actions/download-artifact@v4
         with:
@@ -70,6 +73,10 @@ jobs:
       - name: Make scripts executable
         run: |
           find xcode_export -type f -name "*.sh" -exec chmod +x {} + || true
+
+      - name: Patch Xcode Project for Manual Signing
+        run: |
+          python3 .github/scripts/patch_xcode.py xcode_export
 
       - name: Build with Xcode (TrollStore / Sideload Unsigned)
         run: |
@@ -84,26 +91,6 @@ jobs:
           PROJECT_NAME=$(basename "$XCODEPROJ_PATH")
           echo "Found Project: $PROJECT_NAME in $PROJECT_DIR"
           cd "$PROJECT_DIR"
-          
-          # Patch project.pbxproj to ensure manual signing without team
-          cat << 'EOF' > patch_xcode.py
-import os, sys, re
-proj_name = sys.argv[1]
-pbx = os.path.join(proj_name, 'project.pbxproj')
-if os.path.exists(pbx):
-    with open(pbx, 'r', encoding='utf-8') as f:
-        c = f.read()
-    c = c.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
-    c = re.sub(r'DevelopmentTeam = [^;]*;', 'DevelopmentTeam = "";', c)
-    c = re.sub(r'DevelopmentTeam\[[^\]]*\] = [^;]*;', 'DevelopmentTeam = "";', c)
-    c = re.sub(r'PROVISIONING_PROFILE_SPECIFIER = [^;]*;', 'PROVISIONING_PROFILE_SPECIFIER = "";', c)
-    with open(pbx, 'w', encoding='utf-8') as f:
-        f.write(c)
-    print('Successfully patched', pbx, 'for manual signing')
-else:
-    print('Warning: Could not find', pbx)
-EOF
-          python3 patch_xcode.py "$PROJECT_NAME" || true
           
           SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
           echo "Building Project: $PROJECT_NAME with Scheme: $SCHEME_NAME"
@@ -145,4 +132,3 @@ EOF
           name: CaveRanger-iOS-IPA
           path: CaveRanger.ipa
           retention-days: 14
-
