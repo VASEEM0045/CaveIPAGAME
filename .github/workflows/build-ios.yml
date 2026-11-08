@@ -92,14 +92,11 @@ jobs:
           echo "Found Project: $PROJECT_NAME in $PROJECT_DIR"
           cd "$PROJECT_DIR"
           
-          # Target the main application scheme (Unity-iPhone), not internal sub-targets like GameAssembly
-          SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | grep -i "Unity-iPhone" | head -n 1 | xargs)
-          if [ -z "$SCHEME_NAME" ]; then
-            SCHEME_NAME=$(xcodebuild -list -project "$PROJECT_NAME" | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | grep -v "GameAssembly" | head -n 1 | xargs)
-          fi
-          if [ -z "$SCHEME_NAME" ]; then
-            SCHEME_NAME="Unity-iPhone"
-          fi
+          # List project schemes for logging
+          xcodebuild -list -project "$PROJECT_NAME" || true
+          
+          # Unity iOS main application scheme
+          SCHEME_NAME="Unity-iPhone"
           echo "Building Project: $PROJECT_NAME with Scheme: $SCHEME_NAME"
           
           xcodebuild clean build \
